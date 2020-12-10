@@ -29,29 +29,30 @@ services:
       - cert-vol:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  erpnext-nginx:
-    image: frappe/erpnext-nginx:${ERPNEXT_VERSION}
+  frappe-nginx:
+    image: frappe/frappe-nginx:${FRAPPE_VERSION}
     restart: on-failure
     environment:
-      - FRAPPE_PY=erpnext-python
+      - FRAPPE_PY=frappe-python
       - FRAPPE_PY_PORT=8000
       - FRAPPE_SOCKETIO=frappe-socketio
       - SOCKETIO_PORT=9000
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.erpnext-nginx.rule=Host(${SITES})"
+      - "traefik.http.routers.frappe-nginx.rule=Host(${SITES})"
       - "${ENTRYPOINT_LABEL}"
       - "${CERT_RESOLVER_LABEL}"
-      - "traefik.http.services.erpnext-nginx.loadbalancer.server.port=80"
+      - "traefik.http.services.frappe-nginx.loadbalancer.server.port=80"
     volumes:
       - sites-vol:/var/www/html/sites:rw
       - assets-vol:/assets:rw
 
-  erpnext-python:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+  frappe-python:
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: on-failure
     environment:
-      - MARIADB_HOST=${MARIADB_HOST}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - DB_PORT=5432
       - REDIS_CACHE=redis-cache:6379
       - REDIS_QUEUE=redis-queue:6379
       - REDIS_SOCKETIO=redis-socketio:6379
@@ -69,8 +70,8 @@ services:
     volumes:
       - sites-vol:/home/frappe/frappe-bench/sites:rw
 
-  erpnext-worker-default:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+  frappe-worker-default:
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: on-failure
     command: worker
     depends_on:
@@ -79,8 +80,8 @@ services:
     volumes:
       - sites-vol:/home/frappe/frappe-bench/sites:rw
 
-  erpnext-worker-short:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+  frappe-worker-short:
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: on-failure
     command: worker
     environment:
@@ -91,8 +92,8 @@ services:
     volumes:
       - sites-vol:/home/frappe/frappe-bench/sites:rw
 
-  erpnext-worker-long:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+  frappe-worker-long:
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: on-failure
     command: worker
     environment:
@@ -103,8 +104,8 @@ services:
     volumes:
       - sites-vol:/home/frappe/frappe-bench/sites:rw
 
-  erpnext-schedule:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+  frappe-schedule:
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: on-failure
     command: schedule
     depends_on:
@@ -131,32 +132,32 @@ services:
     volumes:
       - redis-socketio-vol:/data
 
-  mariadb:
-    image: mariadb:10.3
+  postgresql:
+    image: postgres:11.8
     restart: on-failure
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - ./installation/frappe-mariadb.cnf:/etc/mysql/conf.d/frappe.cnf
-      - mariadb-vol:/var/lib/mysql
+      - postgresql-vol:/var/lib/postgresql/data
 
   site-creator:
-    image: frappe/erpnext-worker:${ERPNEXT_VERSION}
+    image: frappe/frappe-worker:${FRAPPE_VERSION}
     restart: "no"
     command: new
     depends_on:
-      - erpnext-python
+      - frappe-python
     environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
       - SITE_NAME=${SITE_NAME}
       - DB_ROOT_USER=${DB_ROOT_USER}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - INSTALL_APPS=${INSTALL_APPS}
     volumes:
       - sites-vol:/home/frappe/frappe-bench/sites:rw
 
 volumes:
-  mariadb-vol:
+  postgresql-vol:
   redis-cache-vol:
   redis-queue-vol:
   redis-socketio-vol:
